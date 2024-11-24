@@ -8,9 +8,9 @@ Final Project for CS759 - Fall 2024
 - Launch image
     `./openbuildpack.sh`
 - Build
-    `mkdir build`
-    `cd build`
-    `cmake ..`
-    `make`
+    - `mkdir build`
+    - `cd build`
+    - `cmake ..`
+    - `make`
 - Run
     `./fractal`
