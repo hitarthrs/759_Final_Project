@@ -3,6 +3,6 @@ sudo docker run \
     -it \
     -v .:/workspace \
     -w /workspace \
-    --gpus=all \
+    $BUILDPACK_GPU_OPTION \
     fractal-image \
     /bin/bash
