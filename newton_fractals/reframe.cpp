@@ -2,25 +2,24 @@
 
 void reframe(float zoomRatio,
              int x, int y, int w, int h,
-             double* xScale, double* yScale,
-             double* xLowerBound, double* xUpperBound,
-             double* yLowerBound, double* yUpperBound) {
-    // Relative mouse position in window
-    double xRatio = (double)x / (double)w;
-    double yRatio = (double)y / (double)h;
+             float* xScale, float* yScale,
+             float* xLowerBound, float* xUpperBound,
+             float* yLowerBound, float* yUpperBound) {
+    // Calculate relative mouse position in the window
+    float xRatio = static_cast<float>(x) / w;
+    float yRatio = static_cast<float>(y) / h;
 
-    // Recalculate bounds
-    double xLowerBoundNext = *xLowerBound + ((double)zoomRatio * xRatio * (*xUpperBound - *xLowerBound));
-    *xUpperBound = *xUpperBound - ((double)zoomRatio * (1.0 - xRatio) * (*xUpperBound - *xLowerBound));
-    *xLowerBound = xLowerBoundNext;
+    // Update X-axis bounds
+    float deltaX = zoomRatio * (*xUpperBound - *xLowerBound);
+    *xLowerBound += deltaX * xRatio;
+    *xUpperBound -= deltaX * (1.0f - xRatio);
 
-    double yLowerBoundNext = *yLowerBound + ((double)zoomRatio * yRatio * (*yUpperBound - *yLowerBound));
-    *yUpperBound = *yUpperBound - ((double)zoomRatio * (1.0 - yRatio) * (*yUpperBound - *yLowerBound));
-    *yLowerBound = yLowerBoundNext;
+    // Update Y-axis bounds
+    float deltaY = zoomRatio * (*yUpperBound - *yLowerBound);
+    *yLowerBound += deltaY * yRatio;
+    *yUpperBound -= deltaY * (1.0f - yRatio);
 
-    // Recalculate step size
+    // Update scale factors
     *xScale = (*xUpperBound - *xLowerBound) / w;
     *yScale = (*yUpperBound - *yLowerBound) / h;
-
-    return;
 }

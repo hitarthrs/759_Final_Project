@@ -65,13 +65,13 @@ int main(){
     int j;                      // iterator in CPU implementation
 
     // Default bounds
-    double* boundsHost = (double*)malloc(4*sizeof(double));
-    double xLowerBound = -2.21;
-    double xUpperBound = 1.63;
-    double yLowerBound = -1.2;
-    double yUpperBound = 1.2;
-    double xScale = (xUpperBound - xLowerBound) / SCREEN_WIDTH;
-    double yScale = (yUpperBound - yLowerBound) / SCREEN_HEIGHT;
+    float* boundsHost = (float*)malloc(4*sizeof(float));
+    float xLowerBound = -2.21f;
+    float xUpperBound = 1.63f;
+    float yLowerBound = -1.2f;
+    float yUpperBound = 1.2f;
+    float xScale = (xUpperBound - xLowerBound) / SCREEN_WIDTH;
+    float yScale = (yUpperBound - yLowerBound) / SCREEN_HEIGHT;
 
     // Fill bounds and send to device
     boundsHost[0] = xLowerBound;

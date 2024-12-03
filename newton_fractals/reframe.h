@@ -13,8 +13,8 @@
 // - yLowerBound, yUpperBound: Pointers to the current lower and upper bounds of the Y-axis
 void reframe(float zoomRatio,
              int x, int y, int w, int h,
-             double* xScale, double* yScale,
-             double* xLowerBound, double* xUpperBound,
-             double* yLowerBound, double* yUpperBound);
+             float* xScale, float* yScale,
+             float* xLowerBound, float* xUpperBound,
+             float* yLowerBound, float* yUpperBound);
 
 #endif // REFRAME_H
