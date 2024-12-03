@@ -2,17 +2,21 @@
 Final Project for CS759 - Fall 2024
 
 #### Getting started on Linux
+- Install X11 Server
+    - Since we are running in a container,
+      graphics must be sent to host OS via X11 forwarding
+    - On Windows host machine, Xming is known to work
+        - Search for, download, launch "Xming" on host machine
+        - Will remain in system tray until window is sent from container
+        - X11 can be tested by running `xeyes` within container
 - Install Docker
     - If using WSL, install Docker Desktop in Windows
     - else, follow instructions at https://docs.docker.com/engine/install/
 - Build fractal-image docker image from within project dir
     - `sudo docker build -t fractal-image .`
 - If your machine has an Nvidia GPU
-    - add the line `export BUILDPACK_GPU_OPTION="--gpus=all"` to `~/.bashrc`
-    - run `source ~/.bashrc`
-    - If you accidentally follow this step without an nvidia gpu
-        - remove the above line from `~/.bashrc`
-        - `unset BUILDPACK_GPU_OPTION`
+    - `echo export BUILDPACK_GPU_OPTION=--gpus=all >> ~/.bashrc`
+    - `source ~/.bashrc`
 - Launch image
     - `./openbuildpack.sh`
 - Build

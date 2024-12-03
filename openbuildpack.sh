@@ -4,5 +4,6 @@ sudo docker run \
     -v .:/workspace \
     -w /workspace \
     $BUILDPACK_GPU_OPTION \
+    -e DISPLAY=$(ip route list default | awk '{print $3}'):0 \
     fractal-image \
     /bin/bash
