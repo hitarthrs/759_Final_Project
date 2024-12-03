@@ -3,6 +3,7 @@
 #include <iostream>
 #include <chrono>
 #include "newton_fractal.h"
+#include <cstring>
 #include <omp.h>
 #include "reframe.h"
 
@@ -142,16 +143,22 @@ int main(){
 
             if(omp_imp){
 
-            // Render the frame
-            #pragma omp parallel for schedule(dynamic)
+            float real, imag;
+            Uint8 r, g, b;
+            int j;
+            std::complex<float> finalRoot;
+            // Create a buffer for storing pixel colors            
+            std::vector<Uint32> pixelBuffer(SCREEN_WIDTH * SCREEN_HEIGHT); // Buffer for a single line
+
+            #pragma omp parallel for schedule(dynamic) private(real, imag, r, g, b, j, finalRoot)
             for (int i = 0; i < SCREEN_HEIGHT; i++) {
                 for (int k = 0; k < SCREEN_WIDTH; k++) {
                     // Map pixel to complex plane
-                    float real = xLowerBound + k * xScale;
-                    float imag = yLowerBound + i * yScale;
+                    real = xLowerBound + k * xScale;
+                    imag = yLowerBound + i * yScale;
 
                     // Compute iteration count
-                    j = newton(real, imag, maxIter, epsilon, polynomial, derivative);
+                    int j = newton(real, imag, maxIter, epsilon, polynomial, derivative);
 
                     // Start with initial point and iterate to find the converged root
                     std::complex<float> finalRoot(real, imag);
@@ -160,49 +167,52 @@ int main(){
                     }
 
                     // Assign color based on the root and iteration count
-                    Uint8 r = 0, g = 0, b = 0;
-
+                    r = 0, g = 0, b = 0;
                     if (j >= maxIter) {
-                        // Non-convergent points: Black
-                        r = g = b = 0;
+                        r = g = b = 0; // Non-convergent points: Black
                     } else {
-                        // Assign colors based on the root's proximity
                         if (std::abs(finalRoot - std::complex<float>(1, 0)) < epsilon) {
-                            r = 255; // Root 1: Red
-                            g = b = 0;
+                            r = 255; g = b = 0; // Red for Root 1
                         } else if (std::abs(finalRoot - std::complex<float>(-0.5, std::sqrt(3) / 2)) < epsilon) {
-                            g = 255; // Root 2: Green
-                            r = b = 0;
+                            g = 255; r = b = 0; // Green for Root 2
                         } else if (std::abs(finalRoot - std::complex<float>(-0.5, -std::sqrt(3) / 2)) < epsilon) {
-                            b = 255; // Root 3: Blue
-                            r = g = 0;
+                            b = 255; r = g = 0; // Blue for Root 3
                         }
 
-                        // Adjust brightness based on iteration count
+                        // Brightness adjustment based on iteration count
                         float brightness = std::max(0.1f, 1.0f - (float)j / maxIter);
                         r *= brightness;
                         g *= brightness;
                         b *= brightness;
                     }
 
-                    // Draw the pixel
-                    #pragma omp critical
-                    {
+                    // Store color in the line buffer
+                    pixelBuffer[i * SCREEN_WIDTH + k] = (r << 24) | (g << 16) | (b << 8) | SDL_ALPHA_OPAQUE;
+                }
+            }
+    
+
+            // Single-threaded rendering of the buffer
+            for (int i = 0; i < SCREEN_HEIGHT; i++) {
+                for (int k = 0; k < SCREEN_WIDTH; k++) {
+                    Uint32 color = pixelBuffer[i * SCREEN_WIDTH + k];
+                    Uint8 r = (color >> 24) & 0xFF;
+                    Uint8 g = (color >> 16) & 0xFF;
+                    Uint8 b = (color >> 8) & 0xFF;
+
                     SDL_SetRenderDrawColor(renderer, r, g, b, SDL_ALPHA_OPAQUE);
                     SDL_RenderDrawPoint(renderer, k, i);
-                    }
                 }
-                // Update the screen after rendering all pixels
-                SDL_RenderPresent(renderer);
-                }
+            }
+            SDL_RenderPresent(renderer);
 
-
+        
             std::chrono::steady_clock::time_point end = std::chrono::steady_clock::now();
-            std::cout << "Frame Time: " << std::chrono::duration_cast<std::chrono::microseconds>(end - begin).count() << " us\n"; 
+            std::cout << "Frame Time: " << std::chrono::duration_cast<std::chrono::microseconds>(end - begin).count() << " us\n";
 
 
-
-            }else{
+            }
+            else{
             // Render the frame
             for (int i = 0; i < SCREEN_HEIGHT; i++) {
                 for (int k = 0; k < SCREEN_WIDTH; k++) {
