@@ -95,13 +95,15 @@ int main(){
 
         // If there was an update, recompute the fractal
         if (update) {
+
             printf("Recomputing fractal with new bounds...\n");
             update = 0; // Reset update flag
-            // Time Frame-time
-            std::chrono::steady_clock::time_point begin = std::chrono::steady_clock::now();
 
             // Create a buffer for storing pixel colors
             std::vector<uint32_t> pixelBuffer(SCREEN_WIDTH * SCREEN_HEIGHT); // Buffer for a single line
+
+            // Time Frame Rendering
+            std::chrono::steady_clock::time_point begin = std::chrono::steady_clock::now();
 
             #pragma omp parallel for if(omp_imp)
             for (int i = 0; i < SCREEN_HEIGHT; i++) {
@@ -116,7 +118,7 @@ int main(){
                     // Assign color based on the root and iteration count
                     uint32_t brightness = 255.0f * std::max(0.1f, 1.0f - (float)j / MAX_ITERATIONS);
                     if (j < MAX_ITERATIONS) {
-                        
+
                         if (std::abs(z - std::complex<float>(1, 0)) < EPSILON)
                             brightness <<= 24; // Red for Root 1
                         
@@ -132,13 +134,11 @@ int main(){
                 }
             }
 
-            // Get pointers to start and end of pixels buffer
-            uint32_t *surfacePixelsStart = reinterpret_cast<uint32_t *>(screen->pixels);
-            uint32_t *surfacePixelsEnd = surfacePixelsStart + SCREEN_WIDTH * SCREEN_HEIGHT - 1;
+            std::chrono::steady_clock::time_point end = std::chrono::steady_clock::now();
 
             // Modify buffer
             SDL_LockSurface(screen);
-            std::memcpy(screen->pixels, &pixelBuffer.at(0), sizeof(uint32_t) * SCREEN_WIDTH * SCREEN_HEIGHT); // Copy dark green to all pixels in buffer
+            std::memcpy(screen->pixels, &pixelBuffer.at(0), sizeof(uint32_t) * SCREEN_WIDTH * SCREEN_HEIGHT);
             SDL_UnlockSurface(screen);
 
             // Update Surface
@@ -146,7 +146,6 @@ int main(){
             SDL_RenderCopy(renderer, texture, NULL, NULL);
             SDL_RenderPresent(renderer);
 
-            std::chrono::steady_clock::time_point end = std::chrono::steady_clock::now();
             std::cout << "Frame Time: " << std::chrono::duration_cast<std::chrono::microseconds>(end - begin).count() << " us\n";
         }
 
