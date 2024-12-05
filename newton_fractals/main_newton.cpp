@@ -9,18 +9,6 @@
 
 #define SCREEN_WIDTH 1280
 #define SCREEN_HEIGHT 720
-int maxIter = 100;
-
-// Polynomial and derivative for Newton's method (example: z^3 - 1)
-std::complex<float> polynomial(std::complex<float> z) {
-    return z * z * z - std::complex<float>(1.0f, 0.0f);
-}
-
-std::complex<float> derivative(std::complex<float> z) {
-    return 3.0f * z * z;
-}
-
-float epsilon = 1e-5;
 
 int main(){
 
@@ -35,8 +23,8 @@ int main(){
     int update = 1;             // Update frame
     float zoomInRatio = 0.5;    // Amount to zoom in by
     float zoomOutRatio = -1.0;  // Amount to zoom out by
-    Uint32 buttons;             // buttons to parse
-    const Uint8* keys = SDL_GetKeyboardState(NULL);    // keys to parse
+    uint32_t buttons;             // buttons to parse
+    const uint8_t* keys = SDL_GetKeyboardState(NULL);    // keys to parse
     int omp_imp = 1;            // use cuda implementation
     int j;                      // iterator in CPU implementation
 
@@ -55,28 +43,24 @@ int main(){
     boundsHost[2] = xScale;
     boundsHost[3] = yScale;
 
-
     printf("\nLaunching CPU implementation.\n");
     printf("Mouse interaction: Left click to zoom in, Right click to zoom out.\n");
 
-    bool running = true;
-    while (running) {
-        SDL_Event event;
-        while (SDL_PollEvent(&event)) {
-            switch (event.type) {
-                case SDL_QUIT: // Exit loop
-                    running = false;
-                    break;
+    SDL_Event event;
+    bool eventOccurred = SDL_PollEvent(&event);
 
-                case SDL_MOUSEBUTTONDOWN: { // Use a block scope here
+    while (event.type != SDL_QUIT) {
+        if(eventOccurred) {
+            switch (event.type) {
+                case SDL_MOUSEWHEEL: { // Use a block scope here
                     int buttons = SDL_GetMouseState(&xMouse, &yMouse);
-                    if ((buttons & SDL_BUTTON_LMASK) != 0) {
-                        // Left click: zoom in
+                    if (event.wheel.y > 0) {
+                        // Scroll up: zoom in
                         update = 1;
                         reframe(zoomInRatio, xMouse, yMouse, SCREEN_WIDTH, SCREEN_HEIGHT,
                                 &xScale, &yScale, &xLowerBound, &xUpperBound,
                                 &yLowerBound, &yUpperBound);
-                    } else if ((buttons & SDL_BUTTON_RMASK) != 0) {
+                    } else if (event.wheel.y < 0) {
                         // Right click: zoom out
                         update = 1;
                         reframe(zoomOutRatio, xMouse, yMouse, SCREEN_WIDTH, SCREEN_HEIGHT,
@@ -87,7 +71,7 @@ int main(){
                 }
 
                 case SDL_KEYDOWN: {
-                    const Uint8* keys = SDL_GetKeyboardState(NULL);
+                    const uint8_t* keys = SDL_GetKeyboardState(NULL);
                     if (keys[SDL_SCANCODE_S]) {
                         // Switch to another implementation if needed
                         update = 1;
@@ -116,47 +100,35 @@ int main(){
             // Time Frame-time
             std::chrono::steady_clock::time_point begin = std::chrono::steady_clock::now();
 
-            // Create a buffer for storing pixel colors            
-            std::vector<Uint32> pixelBuffer(SCREEN_WIDTH * SCREEN_HEIGHT); // Buffer for a single line
+            // Create a buffer for storing pixel colors
+            std::vector<uint32_t> pixelBuffer(SCREEN_WIDTH * SCREEN_HEIGHT); // Buffer for a single line
 
             #pragma omp parallel for if(omp_imp)
             for (int i = 0; i < SCREEN_HEIGHT; i++) {
                 for (int k = 0; k < SCREEN_WIDTH; k++) {
+
                     // Map pixel to complex plane
-                    const float real = xLowerBound + k * xScale;
-                    const float imag = yLowerBound + i * yScale;
+                    std::complex<float> z(xLowerBound + k * xScale, yLowerBound + i * yScale);
 
-                    // Compute iteration count
-                    const int j = newton(real, imag, maxIter, epsilon, polynomial, derivative);
-
-                    // Start with initial point and iterate to find the converged root
-                    std::complex<float> finalRoot(real, imag);
-                    for (int n = 0; n < j; ++n) {
-                        finalRoot -= polynomial(finalRoot) / derivative(finalRoot);
-                    }
+                    // Compute Newton
+                    const int j = newton(z);
 
                     // Assign color based on the root and iteration count
-                    uint8_t r(0), g(0), b(0);
-                    if (j >= maxIter) {
-                        r = g = b = 0; // Non-convergent points: Black
-                    } else {
-                        if (std::abs(finalRoot - std::complex<float>(1, 0)) < epsilon) {
-                            r = 255; g = b = 0; // Red for Root 1
-                        } else if (std::abs(finalRoot - std::complex<float>(-0.5, std::sqrt(3) / 2)) < epsilon) {
-                            g = 255; r = b = 0; // Green for Root 2
-                        } else if (std::abs(finalRoot - std::complex<float>(-0.5, -std::sqrt(3) / 2)) < epsilon) {
-                            b = 255; r = g = 0; // Blue for Root 3
-                        }
-
-                        // Brightness adjustment based on iteration count
-                        const float brightness = std::max(0.1f, 1.0f - (float)j / maxIter);
-                        r *= brightness;
-                        g *= brightness;
-                        b *= brightness;
+                    uint32_t brightness = 255.0f * std::max(0.1f, 1.0f - (float)j / MAX_ITERATIONS);
+                    if (j < MAX_ITERATIONS) {
+                        
+                        if (std::abs(z - std::complex<float>(1, 0)) < EPSILON)
+                            brightness <<= 24; // Red for Root 1
+                        
+                        else if (std::abs(z - std::complex<float>(-0.5, std::sqrt(3) / 2)) < EPSILON)
+                            brightness <<= 16; // Green for Root 2
+                        
+                        else if (std::abs(z - std::complex<float>(-0.5, -std::sqrt(3) / 2)) < EPSILON)
+                            brightness <<= 8; // Blue for Root 3
                     }
 
                     // Store color in the line buffer
-                    pixelBuffer[i * SCREEN_WIDTH + k] = (r << 24) | (g << 16) | (b << 8) | SDL_ALPHA_OPAQUE;
+                    pixelBuffer[i * SCREEN_WIDTH + k] = brightness | SDL_ALPHA_OPAQUE;
                 }
             }
 
@@ -169,7 +141,7 @@ int main(){
             std::memcpy(screen->pixels, &pixelBuffer.at(0), sizeof(uint32_t) * SCREEN_WIDTH * SCREEN_HEIGHT); // Copy dark green to all pixels in buffer
             SDL_UnlockSurface(screen);
 
-            // // Update Surface
+            // Update Surface
             SDL_UpdateTexture(texture, NULL, screen->pixels, screen->pitch);
             SDL_RenderCopy(renderer, texture, NULL, NULL);
             SDL_RenderPresent(renderer);
@@ -177,6 +149,8 @@ int main(){
             std::chrono::steady_clock::time_point end = std::chrono::steady_clock::now();
             std::cout << "Frame Time: " << std::chrono::duration_cast<std::chrono::microseconds>(end - begin).count() << " us\n";
         }
+
+        eventOccurred = SDL_PollEvent(&event);
     }
 
     // Quit

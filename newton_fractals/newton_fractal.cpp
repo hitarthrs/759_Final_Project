@@ -2,27 +2,30 @@
 #include <complex>
 #include <cmath>
 
-int newton(float real, float imag, int maxIter, float epsilon,
-           const std::function<std::complex<float>(std::complex<float>)>& polynomial,
-           const std::function<std::complex<float>(std::complex<float>)>& derivative) {
-    std::complex<float> z(real, imag);
-    for (int i = 0; i < maxIter; ++i) {
-        std::complex<float> fz = polynomial(z);
-        std::complex<float> fzPrime = derivative(z);
+// Polynomial and derivative for Newton's method (example: z^3 - 1)
+static inline std::complex<float> polynomial(std::complex<float> z) {
+    return z * z * z - std::complex<float>(1.0f, 0.0f);
+}
 
-        if (std::abs(fzPrime) < epsilon) {
-            // Avoid division by a very small number (derivative close to zero)
-            return maxIter;
-        }
+static inline std::complex<float> derivative(std::complex<float> z) {
+    return 3.0f * z * z;
+}
 
-        std::complex<float> nextZ = z - fz / fzPrime;
+int newton(std::complex<float>& z) {
+    for (int i = 0; i < MAX_ITERATIONS; ++i) {
+        const std::complex<float> fz = polynomial(z);
+        const std::complex<float> fzPrime = derivative(z);
 
-        if (std::abs(nextZ - z) < epsilon) {
-            // Converged to a root
+        // Avoid division by a very small number (derivative close to zero)
+        if (std::abs(fzPrime) < EPSILON)
+            return MAX_ITERATIONS;
+
+        const std::complex<float> nextZ = z - fz / fzPrime;
+
+        if (std::abs(nextZ - z) < EPSILON) // Converged to a root
             return i;
-        }
 
         z = nextZ;
     }
-    return maxIter; // Did not converge within the maximum number of iterations
+    return MAX_ITERATIONS; // Did not converge within the maximum number of iterations
 }
