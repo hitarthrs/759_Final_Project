@@ -6,11 +6,17 @@
 #include <cstring>
 #include <omp.h>
 #include "reframe.h"
+#include "render_cuda.h"
 
 #define SCREEN_WIDTH 1280
 #define SCREEN_HEIGHT 720
 
-int main(){
+int main(int argc, char* argv[]){
+
+    bool useCuda = false;
+    if(argc == 2 &&  std::stoi(argv[1]) == 1)
+        useCuda = true;
+
 
     // Initialize SDL, window, screen, renderer, and texture
     SDL_Init(SDL_INIT_VIDEO);
@@ -25,7 +31,7 @@ int main(){
     float zoomOutRatio = -1.0;  // Amount to zoom out by
     uint32_t buttons;             // buttons to parse
     const uint8_t* keys = SDL_GetKeyboardState(NULL);    // keys to parse
-    int omp_imp = 1;            // use cuda implementation
+    int implementation = 1;            // use omp implementation by default
     int j;                      // iterator in CPU implementation
 
     // Default bounds
@@ -73,17 +79,20 @@ int main(){
                 case SDL_KEYDOWN: {
                     const uint8_t* keys = SDL_GetKeyboardState(NULL);
                     if (keys[SDL_SCANCODE_S]) {
-                        // Switch to another implementation if needed
+                        // Cycle implementation
                         update = 1;
-                        if(omp_imp){
-                            printf("\nSwitching to Single-Threaded Implementation...\n");
-                            omp_imp = 0;
-                        }
-                        else{
+                        if(implementation == 0) {
                             printf("\nSwitching to Multi-Threaded Implementation...\n");
-                            omp_imp = 1;
+                            implementation = 1;
                         }
-                        std::cout << "S key pressed" << std::endl;
+                        else if(implementation == 1 && useCuda) {
+                            printf("\nSwitching to CUDA Implementation...\n");
+                            implementation = 2;
+                        }
+                        else {
+                            printf("\nSwitching to Single-Threaded Implementation...\n");
+                            implementation = 0;
+                        }
                     }
                     break;
                 }
@@ -102,39 +111,44 @@ int main(){
             // Create a buffer for storing pixel colors
             std::vector<uint32_t> pixelBuffer(SCREEN_WIDTH * SCREEN_HEIGHT); // Buffer for a single line
 
-            // Time Frame Rendering
-            std::chrono::steady_clock::time_point begin = std::chrono::steady_clock::now();
+            if(implementation < 2) {
+                // Time Frame Rendering
+                std::chrono::steady_clock::time_point begin = std::chrono::steady_clock::now();
 
-            #pragma omp parallel for if(omp_imp)
-            for (int i = 0; i < SCREEN_HEIGHT; i++) {
-                for (int k = 0; k < SCREEN_WIDTH; k++) {
+                #pragma omp parallel for if(implementation)
+                for (int i = 0; i < SCREEN_HEIGHT; i++) {
+                    for (int k = 0; k < SCREEN_WIDTH; k++) {
 
-                    // Map pixel to complex plane
-                    std::complex<float> z(xLowerBound + k * xScale, yLowerBound + i * yScale);
+                        // Map pixel to complex plane
+                        std::complex<float> z(xLowerBound + k * xScale, yLowerBound + i * yScale);
 
-                    // Compute Newton
-                    const int j = newton(z);
+                        // Compute Newton
+                        const int j = newton(z);
 
-                    // Assign color based on the root and iteration count
-                    uint32_t brightness = 255.0f * std::max(0.1f, 1.0f - (float)j / MAX_ITERATIONS);
-                    if (j < MAX_ITERATIONS) {
+                        // Assign color based on the root and iteration count
+                        uint32_t brightness = 255.0f * std::max(0.1f, 1.0f - (float)j / MAX_ITERATIONS);
+                        if (j < MAX_ITERATIONS) {
 
-                        if (std::abs(z - std::complex<float>(1, 0)) < EPSILON)
-                            brightness <<= 24; // Red for Root 1
-                        
-                        else if (std::abs(z - std::complex<float>(-0.5, std::sqrt(3) / 2)) < EPSILON)
-                            brightness <<= 16; // Green for Root 2
-                        
-                        else if (std::abs(z - std::complex<float>(-0.5, -std::sqrt(3) / 2)) < EPSILON)
-                            brightness <<= 8; // Blue for Root 3
+                            if (std::abs(z - std::complex<float>(1, 0)) < EPSILON)
+                                brightness <<= 24; // Red for Root 1
+                            
+                            else if (std::abs(z - std::complex<float>(-0.5, std::sqrt(3) / 2)) < EPSILON)
+                                brightness <<= 16; // Green for Root 2
+                            
+                            else if (std::abs(z - std::complex<float>(-0.5, -std::sqrt(3) / 2)) < EPSILON)
+                                brightness <<= 8; // Blue for Root 3
+                        }
+
+                        // Store color in the line buffer
+                        pixelBuffer[i * SCREEN_WIDTH + k] = brightness | SDL_ALPHA_OPAQUE;
                     }
-
-                    // Store color in the line buffer
-                    pixelBuffer[i * SCREEN_WIDTH + k] = brightness | SDL_ALPHA_OPAQUE;
                 }
-            }
 
-            std::chrono::steady_clock::time_point end = std::chrono::steady_clock::now();
+                std::chrono::steady_clock::time_point end = std::chrono::steady_clock::now();
+                std::cout << "Frame Time: " << std::chrono::duration_cast<std::chrono::microseconds>(end - begin).count() << " us\n";
+            }
+            else
+                renderCuda(pixelBuffer, SCREEN_WIDTH, SCREEN_HEIGHT, xLowerBound, yLowerBound, xScale, yScale);
 
             // Modify buffer
             SDL_LockSurface(screen);
@@ -145,8 +159,6 @@ int main(){
             SDL_UpdateTexture(texture, NULL, screen->pixels, screen->pitch);
             SDL_RenderCopy(renderer, texture, NULL, NULL);
             SDL_RenderPresent(renderer);
-
-            std::cout << "Frame Time: " << std::chrono::duration_cast<std::chrono::microseconds>(end - begin).count() << " us\n";
         }
 
         eventOccurred = SDL_PollEvent(&event);

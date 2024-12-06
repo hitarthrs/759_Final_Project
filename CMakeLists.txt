@@ -11,7 +11,8 @@ include_directories(${SDL2_INCLUDE_DIRS})
 # add_executable(fractal main.cu)
 add_executable(fractal newton_fractals/main_newton.cpp
                        newton_fractals/newton_fractal.cpp
-                       newton_fractals/reframe.cpp)
+                       newton_fractals/reframe.cpp
+                       newton_fractals/render_cuda.cu)
 
 set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fopenmp")
 
