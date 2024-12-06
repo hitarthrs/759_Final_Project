@@ -9,7 +9,28 @@
 #define SCREEN_WIDTH 900
 #define SCREEN_HEIGHT 900
 
-int main() {
+int main(int argc, char* argv[]) {
+    // Check if a sequence is provided as input
+    if (argc != 2) {
+        std::cerr << "Usage: " << argv[0] << " <sequence>\n";
+        std::cerr << "Example: " << argv[0] << " AABAB\n";
+        return 1;
+    }
+
+    std::string sequence = argv[1];
+    if (sequence.empty()) {
+        std::cerr << "Error: The input sequence cannot be empty.\n";
+        return 1;
+    }
+
+    // Validate input sequence (must contain only 'A' and 'B')
+    for (char c : sequence) {
+        if (c != 'A' && c != 'B') {
+            std::cerr << "Error: The sequence must contain only 'A' and 'B'.\n";
+            return 1;
+        }
+    }
+
     // Initialize SDL
     if (SDL_Init(SDL_INIT_VIDEO) < 0) {
         std::cerr << "Failed to initialize SDL: " << SDL_GetError() << std::endl;
@@ -39,9 +60,6 @@ int main() {
         SDL_Quit();
         return 1;
     }
-
-    // Sequence for the Lyapunov fractal
-    std::string sequence = "AABAB";
 
     // Image plane bounds
     float aMin = 2.0f, aMax = 4.0f;

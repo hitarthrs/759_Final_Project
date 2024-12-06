@@ -1,6 +1,7 @@
 #include "lyapunov_fractal.h"
 #include <cmath>
 
+
 // Computes the Lyapunov exponent
 float computeLyapunov(const std::string& sequence, float a, float b) {
     size_t seqLength = sequence.size();
