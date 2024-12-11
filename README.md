@@ -12,6 +12,8 @@ Final Project for CS759 - Fall 2024
 - Install Docker
     - If using WSL, install Docker Desktop in Windows
     - else, follow instructions at https://docs.docker.com/engine/install/
+- Ensure base docker image exists and is accessible
+	- `docker pull nvidia/cuda:12.6.2-devel-ubuntu24.04`
 - Build fractal-image docker image from within project dir
     - `sudo docker build -t fractal-image .`
 - If your machine has an Nvidia GPU
