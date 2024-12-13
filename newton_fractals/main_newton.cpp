@@ -81,18 +81,18 @@ int main(int argc, char* argv[]){
                     if (keys[SDL_SCANCODE_S]) {
                         // Cycle implementation
                         update = 1;
-                        if(implementation == 0) {
+                        if(implementation != 1) {
                             printf("\nSwitching to Multi-Threaded Implementation...\n");
                             implementation = 1;
                         }
-                        else if(implementation == 1 && useCuda) {
+                        else /*if(implementation == 1 && useCuda)*/ {
                             printf("\nSwitching to CUDA Implementation...\n");
                             implementation = 2;
                         }
-                        else {
-                            printf("\nSwitching to Single-Threaded Implementation...\n");
-                            implementation = 0;
-                        }
+                        // else {
+                        //     printf("\nSwitching to Single-Threaded Implementation...\n");
+                        //     implementation = 0;
+                        // }
                     }
                     break;
                 }
