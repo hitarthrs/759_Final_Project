@@ -25,7 +25,7 @@ float computeLyapunov(const std::string& sequence, float a, float b) {
     return lyapunovExponent / 6000; // MAX_ITERATIONS
 }
 
-// Maps a Lyapunov exponent value to a color (RGBA)
+// Maps a Lyapunov exponent value to a color (RGBA) //HELPED BY CHATGPT TO WRITE THIS FUNCTION
 uint32_t mapLyapunovToColor(float lyapunov) {
     if (lyapunov < 0) {
         // Dark blue color for divergent points
