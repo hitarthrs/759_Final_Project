@@ -5,17 +5,21 @@
 #include <chrono>
 #include <omp.h>
 #include "lyapunov_fractal.h"
+#include "render_cuda.h"
 
 #define SCREEN_WIDTH 900
 #define SCREEN_HEIGHT 900
 
 int main(int argc, char* argv[]) {
     // Check if a sequence is provided as input
-    if (argc != 2) {
+    if (argc < 2) {
         std::cerr << "Usage: " << argv[0] << " <sequence>\n";
         std::cerr << "Example: " << argv[0] << " AABAB\n";
         return 1;
     }
+
+    int imp = 0;
+    if (argc > 2) imp = 1; // Use CUDA if second arg given
 
     std::string sequence = argv[1];
     if (sequence.empty()) {
@@ -72,28 +76,33 @@ int main(int argc, char* argv[]) {
     // Frame buffer
     std::vector<uint32_t> pixelBuffer(SCREEN_WIDTH * SCREEN_HEIGHT);
 
-    // Start timer
-    auto startTime = std::chrono::high_resolution_clock::now();
+    if(!imp){
 
-    // Parallel computation of Lyapunov fractal using OpenMP
-    #pragma omp parallel for collapse(2) schedule(dynamic)
-    for (int y = 0; y < SCREEN_HEIGHT; ++y) {
-        for (int x = 0; x < SCREEN_WIDTH; ++x) {
-            float a = aMin + x * aScale;
-            float b = bMin + y * bScale;
+        // Start timer
+        auto startTime = std::chrono::high_resolution_clock::now();
 
-            // Compute Lyapunov exponent
-            float lyapunov = computeLyapunov(sequence, a, b);
+        // Parallel computation of Lyapunov fractal using OpenMP
+        #pragma omp parallel for schedule(dynamic)
+        for (int y = 0; y < SCREEN_HEIGHT; ++y) {
+            for (int x = 0; x < SCREEN_WIDTH; ++x) {
+                float a = aMin + x * aScale;
+                float b = bMin + y * bScale;
 
-            // Map Lyapunov exponent to color
-            pixelBuffer[y * SCREEN_WIDTH + x] = mapLyapunovToColor(lyapunov);
+                // Compute Lyapunov exponent
+                float lyapunov = computeLyapunov(sequence, a, b);
+
+                // Map Lyapunov exponent to color
+                pixelBuffer[y * SCREEN_WIDTH + x] = mapLyapunovToColor(lyapunov);
+            }
         }
-    }
 
-    // Stop timer
-    auto endTime = std::chrono::high_resolution_clock::now();
-    auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(endTime - startTime).count();
-    std::cout << "Fractal computed in " << duration << " ms\n";
+        // Stop timer
+        auto endTime = std::chrono::high_resolution_clock::now();
+        auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(endTime - startTime).count();
+        std::cout << "Fractal computed in " << duration << " ms\n";
+
+    } else
+        renderCuda(pixelBuffer, SCREEN_WIDTH, SCREEN_HEIGHT, aMin, bMin, aScale, bScale, sequence);
 
     // Render the fractal
     SDL_UpdateTexture(texture, nullptr, pixelBuffer.data(), SCREEN_WIDTH * sizeof(uint32_t));
@@ -103,14 +112,9 @@ int main(int argc, char* argv[]) {
 
     // Wait for user to close the window
     SDL_Event event;
-    bool running = true;
-    while (running) {
-        while (SDL_PollEvent(&event)) {
-            if (event.type == SDL_QUIT) {
-                running = false;
-            }
-        }
-    }
+    SDL_PollEvent(&event);
+    while(event.type != SDL_QUIT)
+        SDL_PollEvent(&event);
 
     // Clean up SDL
     SDL_DestroyTexture(texture);
