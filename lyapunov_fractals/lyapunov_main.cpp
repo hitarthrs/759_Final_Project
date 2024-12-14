@@ -78,20 +78,20 @@ int main(int argc, char* argv[]) {
                     break;
 
                 case SDL_MOUSEWHEEL: {
-                int buttons = SDL_GetMouseState(&xMouse, &yMouse);
-                if (event.wheel.y > 0) {
-                    // Zoom in
-                    update = 1;
-                    reframeLyapunov(zoomInRatio, xMouse, yMouse, SCREEN_WIDTH, SCREEN_HEIGHT,
-                            &aScale, &bScale, &aMin, &aMax, &bMin, &bMax);
-                } else if (event.wheel.y < 0) {
-                    // Zoom out
-                    update = 1;
-                    reframeLyapunov(zoomOutRatio, xMouse, yMouse, SCREEN_WIDTH, SCREEN_HEIGHT,
-                            &aScale, &bScale, &aMin, &aMax, &bMin, &bMax);
+                    int buttons = SDL_GetMouseState(&xMouse, &yMouse);
+                    if (event.wheel.y > 0) {
+                        // Zoom in
+                        update = 1;
+                        reframeLyapunov(zoomInRatio, xMouse, yMouse, SCREEN_WIDTH, SCREEN_HEIGHT,
+                                &aScale, &bScale, &aMin, &aMax, &bMin, &bMax);
+                    } else if (event.wheel.y < 0) {
+                        // Zoom out
+                        update = 1;
+                        reframeLyapunov(zoomOutRatio, xMouse, yMouse, SCREEN_WIDTH, SCREEN_HEIGHT,
+                                &aScale, &bScale, &aMin, &aMax, &bMin, &bMax);
+                    }
+                    break;
                 }
-                break;
-            }
 
 
                 default:
@@ -101,48 +101,45 @@ int main(int argc, char* argv[]) {
 
         // Recompute the fractal if needed
         if (update) {
+
             update = 0; // Reset update flag
             std::vector<uint32_t> pixelBuffer(SCREEN_WIDTH * SCREEN_HEIGHT);
 
-            auto startTime = std::chrono::high_resolution_clock::now();
+            if(!imp) {
 
-            // Compute Lyapunov fractal
-            #pragma omp parallel for schedule(dynamic)
-            for (int y = 0; y < SCREEN_HEIGHT; ++y) {
-                for (int x = 0; x < SCREEN_WIDTH; ++x) {
-                    float a = aMin + x * aScale;
-                    float b = bMin + y * bScale;
+                auto startTime = std::chrono::high_resolution_clock::now();
 
-                    float lyapunov = computeLyapunov(sequence, a, b);
-                    pixelBuffer[y * SCREEN_WIDTH + x] = mapLyapunovToColor(lyapunov);
+                // Compute Lyapunov fractal
+                #pragma omp parallel for schedule(dynamic)
+                for (int y = 0; y < SCREEN_HEIGHT; ++y) {
+                    for (int x = 0; x < SCREEN_WIDTH; ++x) {
+                        float a = aMin + x * aScale;
+                        float b = bMin + y * bScale;
+
+                        float lyapunov = computeLyapunov(sequence, a, b);
+                        pixelBuffer[y * SCREEN_WIDTH + x] = mapLyapunovToColor(lyapunov);
+                    }
                 }
+
+                // Stop timer
+                auto endTime = std::chrono::high_resolution_clock::now();
+                auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(endTime - startTime).count();
+                std::cout << "Fractal computed in " << duration << " ms\n";
+            } else {
+                renderCuda(pixelBuffer, SCREEN_WIDTH, SCREEN_HEIGHT, aMin, bMin, aScale, bScale, sequence);
             }
 
-    // Stop timer
-    auto endTime = std::chrono::high_resolution_clock::now();
-    auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(endTime - startTime).count();
-    std::cout << "Fractal computed in " << duration << " ms\n";
-
-    } else
-        renderCuda(pixelBuffer, SCREEN_WIDTH, SCREEN_HEIGHT, aMin, bMin, aScale, bScale, sequence);
-
-    // Render the fractal
-    SDL_UpdateTexture(texture, nullptr, pixelBuffer.data(), SCREEN_WIDTH * sizeof(uint32_t));
-    SDL_RenderClear(renderer);
-    SDL_RenderCopy(renderer, texture, nullptr, nullptr);
-    SDL_RenderPresent(renderer);
-
-    // Wait for user to close the window
-    SDL_Event event;
-    SDL_PollEvent(&event);
-    while(event.type != SDL_QUIT)
-        SDL_PollEvent(&event);
+            // Render the fractal
+            SDL_UpdateTexture(texture, nullptr, pixelBuffer.data(), SCREEN_WIDTH * sizeof(uint32_t));
+            SDL_RenderClear(renderer);
+            SDL_RenderCopy(renderer, texture, nullptr, nullptr);
+            SDL_RenderPresent(renderer);
+        }
+    }
 
     // Clean up SDL
     SDL_DestroyTexture(texture);
     SDL_DestroyRenderer(renderer);
     SDL_DestroyWindow(window);
     SDL_Quit();
-
-    return 0;
 }

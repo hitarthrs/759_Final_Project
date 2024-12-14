@@ -15,7 +15,8 @@ add_executable(newton newton_fractals/main_newton.cpp
 
 add_executable(lyapunov lyapunov_fractals/lyapunov_fractal.cpp
                         lyapunov_fractals/lyapunov_main.cpp
-                        lyapunov_fractals/render_cuda.cu)
+                        lyapunov_fractals/render_cuda.cu
+                        lyapunov_fractals/reframe.cpp)
 
 set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fopenmp")
 
